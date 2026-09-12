@@ -1,0 +1,7 @@
+# The repo is authored on Windows but runs on the Linux GB10: keep LF everywhere so scripts survive a USB copy.
+* text=auto eol=lf
+*.sh text eol=lf
+*.png binary
+*.jpg binary
+*.wav binary
+*.mp3 binary
