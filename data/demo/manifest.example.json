@@ -1,0 +1,5 @@
+[
+  {"file": "01_aerial_landslide.jpg", "sector": "Sector 4", "simulated": false, "note": "Drone pass, morning", "timestamp": "2026-09-13T08:10:00"},
+  {"file": "02_radio_team2.wav", "sector": "Sector 4", "simulated": true, "note": "SIMULATED RESPONDER RADIO"},
+  {"file": "03_field_report.txt", "sector": "Sector 2", "simulated": true}
+]

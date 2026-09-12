@@ -1,0 +1,7 @@
+# Tested 2026-09 on Python 3.14 (laptop) — target GB10 is Linux aarch64, python>=3.11
+fastapi
+uvicorn
+python-multipart
+openai
+pymongo
+pillow

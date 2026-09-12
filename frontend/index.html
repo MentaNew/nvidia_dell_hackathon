@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RescueBase</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header id="top">
+  <div class="brand">RescueBase <span id="incident" class="muted">—</span></div>
+  <div class="status">
+    <span class="pill" id="ai">LOCAL AI: …</span>
+    <span class="pill" id="net">EXTERNAL NETWORK: …</span>
+    <span class="pill" id="store">MEMORY: …</span>
+  </div>
+</header>
+<div id="offline-banner" hidden></div>
+
+<main>
+  <section id="left" class="panel">
+    <h2>Spatial context</h2>
+    <div id="map"><div id="map-empty" class="muted">No map asset. Drop <code>data/map.png</code> (and set RESCUEBASE_MAP_BOUNDS for pins).</div></div>
+    <div id="sectors"></div>
+
+    <h2>Ingest local asset</h2>
+    <form id="ingest">
+      <input type="file" name="file" required>
+      <input type="text" name="sector" placeholder="Sector (e.g. Sector 4)">
+      <input type="text" name="note" placeholder="Operator note (optional)">
+      <label><input type="checkbox" name="simulated" value="true"> Simulated / illustrative source</label>
+      <button type="submit">Analyze locally</button>
+      <span id="ingest-status" class="muted"></span>
+    </form>
+
+    <h2>Bounded actions</h2>
+    <div class="row">
+      <button id="sitrep-btn" type="button">Low-bandwidth SITREP</button>
+      <button id="reset-btn" type="button" class="ghost">Demo reset</button>
+    </div>
+    <pre id="sitrep" hidden></pre>
+  </section>
+
+  <section id="center" class="panel">
+    <h2>Evidence</h2>
+    <div id="media" class="muted">Select an event to view its source media.</div>
+    <div id="media-meta"></div>
+    <pre id="transcript" hidden></pre>
+  </section>
+
+  <section id="right" class="panel">
+    <div class="row between">
+      <h2>Candidate events <span id="count" class="muted"></span></h2>
+      <select id="filter">
+        <option value="">All</option>
+        <option value="AI_CANDIDATE,UNVERIFIED,UNKNOWN">Needs review</option>
+        <option value="HUMAN_CONFIRMED">Confirmed</option>
+        <option value="HUMAN_REJECTED">Rejected</option>
+      </select>
+    </div>
+    <div id="events"></div>
+  </section>
+</main>
+
+<section id="bottom" class="panel">
+  <div id="timeline"><div id="timeline-track"></div></div>
+  <form id="query">
+    <input type="text" name="q" placeholder="Ask the incident memory: What changed in Sector 4? What remains unverified?" autocomplete="off">
+    <button type="submit">Query</button>
+  </form>
+  <div id="answer" hidden></div>
+</section>
+
+<script src="/app.js"></script>
+</body>
+</html>

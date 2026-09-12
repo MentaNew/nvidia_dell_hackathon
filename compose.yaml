@@ -1,0 +1,10 @@
+# Local incident memory. `docker compose up -d` — the app falls back to SQLite if this is not running.
+services:
+  mongo:
+    image: mongo:8
+    container_name: rescuebase-mongo
+    ports: ["27017:27017"]
+    volumes: ["rescuebase_mongo:/data/db"]
+    restart: unless-stopped
+volumes:
+  rescuebase_mongo:
