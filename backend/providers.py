@@ -11,6 +11,7 @@ import logging
 import re
 import time
 import urllib.request
+from collections import deque
 from functools import lru_cache
 
 from openai import BadRequestError, OpenAI
@@ -52,16 +53,18 @@ GAPS: sectors or questions with no evidence.
 Cite each item with its event id in square brackets. No recommendations, no dispatch orders, no casualty claims."""
 
 
-# Endpoint availability is not proof of processing: record the last real success / error per provider kind.
-LAST: dict[str, dict] = {k: {"last_success": None, "last_error": None, "last_error_at": None, "runs": 0}
+# Endpoint availability is not proof of processing: record the last real success / error and call latency per kind.
+LAST: dict[str, dict] = {k: {"last_success": None, "last_error": None, "last_error_at": None, "runs": 0, "latencies": deque(maxlen=200)}
                          for k in ("vision", "reasoning", "speech", "embedding")}
 
 
-def mark(kind: str, error: Exception | None = None) -> None:
+def mark(kind: str, error: Exception | None = None, seconds: float | None = None) -> None:
     rec = LAST[kind]
     if error is None:
         rec["last_success"] = time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime())
         rec["runs"] += 1
+        if seconds is not None:
+            rec["latencies"].append((time.time(), round(seconds, 3)))
     else:
         rec["last_error"] = f"{type(error).__name__}: {str(error)[:200]}"
         rec["last_error_at"] = time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime())
@@ -96,12 +99,13 @@ def _chat(base_url: str, model: str, messages: list, schema: type[BaseModel] | N
         max_tokens=4000 if config.THINKING else 1200,
         extra_body={"chat_template_kwargs": {"enable_thinking": config.THINKING}},
     )
+    t0 = time.time()
     try:
         if schema is not None:
             fmt = {"type": "json_schema", "json_schema": {"name": schema.__name__, "schema": schema.model_json_schema()}}
             try:
                 r = _client(base_url).chat.completions.create(**kw, response_format=fmt)
-                mark(kind)
+                mark(kind, seconds=time.time() - t0)
                 return r.choices[0].message.content or ""
             except BadRequestError as e:  # server without json_schema support: fall back to prompt-only JSON
                 log.warning("%s rejected json_schema response_format (%s); retrying unconstrained", base_url, e)
@@ -109,7 +113,7 @@ def _chat(base_url: str, model: str, messages: list, schema: type[BaseModel] | N
     except Exception as e:
         mark(kind, e)
         raise
-    mark(kind)
+    mark(kind, seconds=time.time() - t0)
     return r.choices[0].message.content or ""
 
 
@@ -186,12 +190,13 @@ class Speech:
     name = f"{config.STT_MODEL} @ {config.STT_URL}"
 
     def transcribe(self, data: bytes, filename: str) -> str:
+        t0 = time.time()
         try:
             r = _client(config.STT_URL).audio.transcriptions.create(model=config.STT_MODEL, file=(filename, data))
         except Exception as e:
             mark("speech", e)
             raise
-        mark("speech")
+        mark("speech", seconds=time.time() - t0)
         return r.text.strip()
 
     def health(self) -> str:
@@ -203,13 +208,14 @@ class Embedding:
 
     def embed(self, texts: list[str]) -> list[list[float]] | None:
         """None when the embedding server is down: callers degrade to keyword retrieval (fail downward)."""
+        t0 = time.time()
         try:
             r = _client(config.EMBED_URL, 30).embeddings.create(model=config.EMBED_MODEL, input=texts)
         except Exception as e:
             mark("embedding", e)
             log.warning("embeddings unavailable (%s); keyword retrieval only", e)
             return None
-        mark("embedding")
+        mark("embedding", seconds=time.time() - t0)
         return [d.embedding for d in r.data]
 
     def health(self) -> str:

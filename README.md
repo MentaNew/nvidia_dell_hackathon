@@ -86,6 +86,16 @@ Rules enforced in prompts and code: no victim/casualty claims, no dispatch or me
 "passable" judgements, no model-guessed coordinates, visual observations and spoken reports stay separate events,
 agreement between them is not confirmation, conflicting reports are both kept.
 
+## Live GB10 page
+
+`http://localhost:8000/live.html` (link in the header) polls `GET /api/telemetry` every 2 s: GPU name, memory,
+utilization, temperature and power from `nvidia-smi`; RAM and load from procfs; per-provider inference latency
+(p50/p95 over the last 200 real calls), runs and last success; ingestion queue, throughput and drop→entry;
+log counts; network and store. Hardware readings are shown only when the server detects an NVIDIA GB10
+(`nvidia-smi` name contains "GB10", or `RESCUEBASE_ASSUME_GB10=1`); on any other host they read
+"Unavailable — awaiting GB10 telemetry" and the banner names the source host. Stub providers never produce latency
+figures. The hardware path is NOT TESTED on a GB10 yet: only the parser and the unavailable path were tested.
+
 ## Four states in the header
 
 `EXTERNAL INTERNET` (a real HTTP response from an external URL) · `LOCAL INFERENCE` (endpoint reachable **and**

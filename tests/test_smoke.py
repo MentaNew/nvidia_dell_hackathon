@@ -187,6 +187,33 @@ def test_audio_paths():
     assert c.get(r.json()["events"][0]["source_uri"]).status_code == 200  # the original recording stays the evidence
 
 
+def test_telemetry():
+    """Telemetry handling only: the nvidia-smi parser and the unavailable path. Actual GB10 readings are NOT TESTED here."""
+    from backend import telemetry
+
+    g = telemetry.parse_nvidia_smi("NVIDIA GB10, 580.65.06, 41234, 122880, 37, 52, 41.2")
+    assert g["name"] == "NVIDIA GB10" and g["memory.used"] == 41234 and g["memory.total"] == 122880 and g["power.draw"] == 41.2
+    assert telemetry.gb10_detected(g) is True
+    g2 = telemetry.parse_nvidia_smi("NVIDIA GB10, 580.65.06, [N/A], [N/A], 0, [N/A], [N/A]")
+    assert g2["memory.used"] is None and g2["utilization.gpu"] == 0
+    assert telemetry.gb10_detected({"name": "Intel Arc"}) is False and telemetry.gb10_detected(None) is False
+    try:
+        telemetry.parse_nvidia_smi("garbage")
+        assert False, "expected ValueError"
+    except ValueError:
+        pass
+
+    t = c.get("/api/telemetry").json()
+    assert t["host"]["hostname"] and t["host"]["provider_mode"] == "stub"
+    if not t["host"]["gb10_detected"]:  # this laptop
+        assert t["gpu"] is None and t["system"] is None and t["unavailable_reason"] == telemetry.UNAVAILABLE
+    assert t["inference"]["vision"]["latency"] is None and "STUB" in t["inference"]["vision"]["note"]
+    assert t["inference_state"] == "STUB" and t["store"]["kind"] in ("sqlite", "mongo")
+    assert "events" in t["log"] and isinstance(t["ingestion"]["counts"], dict)
+    assert any("NOT TESTED" in n for n in t["notes"])
+    assert c.get("/live.html").status_code == 200 and c.get("/live.js").status_code == 200
+
+
 def test_video_frames():
     from backend.video import ffmpeg_exe
 
@@ -218,5 +245,6 @@ if __name__ == "__main__":
     test_slice()
     test_worker()
     test_audio_paths()
+    test_telemetry()
     test_video_frames()
     print("OK: stub tests passed (provider=stub, store=%s)" % pipe.store.kind)

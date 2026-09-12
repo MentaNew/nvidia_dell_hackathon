@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RescueBase · Live GB10</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+  body { height: auto; min-height: 100vh; }
+  #src { flex: none; padding: 8px 16px; font-weight: 700; font-size: 15px; color: #fff; background: var(--bad); }
+  #src.ok { background: var(--ok); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; padding: 10px; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; }
+  .tile h2 { margin-bottom: 10px; }
+  .kv { display: grid; grid-template-columns: minmax(110px, 40%) 1fr; gap: 4px 10px; font-size: 14px; line-height: 1.5; }
+  .kv .k { color: var(--muted); }
+  .big { font-size: 26px; font-weight: 700; line-height: 1.2; margin-bottom: 6px; }
+  .na { color: var(--warn); font-weight: 600; font-size: 13px; }
+  .bar { height: 10px; background: #e7eaee; border-radius: 5px; overflow: hidden; margin: 4px 0 8px; }
+  .bar > i { display: block; height: 100%; background: var(--accent); }
+  .prov { border-top: 1px dashed var(--line); padding: 6px 0; }
+  .prov:first-of-type { border-top: 0; }
+  .foot { padding: 4px 16px 16px; font-size: 12.5px; color: var(--muted); }
+  a.back { color: #fff; text-decoration: none; font-size: 13px; }
+</style>
+</head>
+<body>
+<header id="top">
+  <div class="brand">RescueBase <span class="muted">Live GB10</span></div>
+  <div class="status">
+    <span class="pill" id="net">EXTERNAL INTERNET: …</span>
+    <span class="pill" id="inf">LOCAL INFERENCE: …</span>
+    <span class="pill" id="store">LOCAL LOG: …</span>
+    <span class="pill" id="ing">INGESTION: …</span>
+    <a class="pill back" href="/">← Incident log</a>
+  </div>
+</header>
+<div id="src">Connecting…</div>
+
+<div class="grid">
+  <section class="tile" id="t-gpu"><h2>GPU</h2><div class="na">Loading…</div></section>
+  <section class="tile" id="t-sys"><h2>System</h2><div class="na">Loading…</div></section>
+  <section class="tile" id="t-inf"><h2>Inference (per provider)</h2><div class="na">Loading…</div></section>
+  <section class="tile" id="t-ing"><h2>Ingestion</h2><div class="na">Loading…</div></section>
+  <section class="tile" id="t-log"><h2>Incident log</h2><div class="na">Loading…</div></section>
+  <section class="tile" id="t-host"><h2>Host</h2><div class="na">Loading…</div></section>
+</div>
+<div class="foot" id="notes"></div>
+
+<script src="/live.js"></script>
+</body>
+</html>

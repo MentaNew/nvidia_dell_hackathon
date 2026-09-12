@@ -8,7 +8,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import config
+from . import config, telemetry
 from .models import Verification
 from .pipeline import Pipeline
 from .store import open_store
@@ -47,6 +47,12 @@ class UpdateBody(BaseModel):
 @app.get("/api/health")
 def health():
     return pipe.health()
+
+
+@app.get("/api/telemetry")
+def telemetry_snapshot():
+    """Live GB10 page data. Hardware readings only when running on the GB10; never laptop numbers."""
+    return telemetry.snapshot(pipe, worker)
 
 
 @app.get("/api/ingest/status")
