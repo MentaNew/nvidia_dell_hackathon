@@ -41,8 +41,8 @@ The user message is a transcript of responder radio audio or a field text report
 - UNCERTAIN when the audio is garbled or the meaning is unclear.
 Quote place names, sector names, times, call-signs and counts exactly as stated. Do not add facts that were not stated and do not infer casualties. 1 to 8 observations. Respond with JSON only, matching the provided schema."""
 
-QUERY_SYSTEM = """You are RescueBase, a local incident-intelligence assistant answering an incident commander.
-Answer the question using ONLY the evidence events listed in the user message. Cite evidence inline with the event id in square brackets, e.g. [ev_1a2b3c4d5e]. Distinguish HUMAN_CONFIRMED evidence from unconfirmed AI_CANDIDATE observations. If the evidence does not answer the question, say exactly what is missing. Never declare victims or casualties, never dispatch teams, never assign medical priority: humans make those decisions. Plain text, at most 120 words."""
+QUERY_SYSTEM = """You are RescueBase, a local incident-log assistant answering a site operations lead.
+Answer the question using ONLY the evidence events listed in the user message. Cite evidence inline with the event id in square brackets, e.g. [ev_1a2b3c4d5e]. Distinguish HUMAN_CONFIRMED evidence from unconfirmed AI_CANDIDATE observations, and visual observations (image/video) from spoken or written reports (audio/text): their agreement does not make either one confirmed. If reports conflict, present both with their sources. If the evidence is insufficient, say exactly what is missing rather than guessing. Preserve negations ("not", "no longer") exactly as reported. Never declare victims or casualties, never dispatch teams, never assign medical priority, never state that a structure is safe or a road is passable from appearance alone: humans decide. Plain text, at most 120 words."""
 
 SITREP_SYSTEM = """You are RescueBase preparing a low-bandwidth situation report for transmission over a constrained link.
 Use ONLY the evidence events listed. Plain text, at most 160 words, exactly three sections:
@@ -50,6 +50,21 @@ CONFIRMED: HUMAN_CONFIRMED events.
 UNCONFIRMED CANDIDATES: AI_CANDIDATE / UNVERIFIED events, explicitly marked unconfirmed.
 GAPS: sectors or questions with no evidence.
 Cite each item with its event id in square brackets. No recommendations, no dispatch orders, no casualty claims."""
+
+
+# Endpoint availability is not proof of processing: record the last real success / error per provider kind.
+LAST: dict[str, dict] = {k: {"last_success": None, "last_error": None, "last_error_at": None, "runs": 0}
+                         for k in ("vision", "reasoning", "speech", "embedding")}
+
+
+def mark(kind: str, error: Exception | None = None) -> None:
+    rec = LAST[kind]
+    if error is None:
+        rec["last_success"] = time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime())
+        rec["runs"] += 1
+    else:
+        rec["last_error"] = f"{type(error).__name__}: {str(error)[:200]}"
+        rec["last_error_at"] = time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime())
 
 
 def strip_think(text: str) -> str:
@@ -73,7 +88,7 @@ def _client(base_url: str, timeout: float = 180) -> OpenAI:
     return OpenAI(base_url=base_url, api_key="local", timeout=timeout, max_retries=0)
 
 
-def _chat(base_url: str, model: str, messages: list, schema: type[BaseModel] | None = None) -> str:
+def _chat(base_url: str, model: str, messages: list, schema: type[BaseModel] | None = None, kind: str = "reasoning") -> str:
     kw = dict(
         model=model,
         messages=messages,
@@ -81,19 +96,30 @@ def _chat(base_url: str, model: str, messages: list, schema: type[BaseModel] | N
         max_tokens=4000 if config.THINKING else 1200,
         extra_body={"chat_template_kwargs": {"enable_thinking": config.THINKING}},
     )
-    if schema is not None:
-        fmt = {"type": "json_schema", "json_schema": {"name": schema.__name__, "schema": schema.model_json_schema()}}
-        try:
-            r = _client(base_url).chat.completions.create(**kw, response_format=fmt)
-            return r.choices[0].message.content or ""
-        except BadRequestError as e:  # server without json_schema support: fall back to prompt-only JSON
-            log.warning("%s rejected json_schema response_format (%s); retrying unconstrained", base_url, e)
-    r = _client(base_url).chat.completions.create(**kw)
+    try:
+        if schema is not None:
+            fmt = {"type": "json_schema", "json_schema": {"name": schema.__name__, "schema": schema.model_json_schema()}}
+            try:
+                r = _client(base_url).chat.completions.create(**kw, response_format=fmt)
+                mark(kind)
+                return r.choices[0].message.content or ""
+            except BadRequestError as e:  # server without json_schema support: fall back to prompt-only JSON
+                log.warning("%s rejected json_schema response_format (%s); retrying unconstrained", base_url, e)
+        r = _client(base_url).chat.completions.create(**kw)
+    except Exception as e:
+        mark(kind, e)
+        raise
+    mark(kind)
     return r.choices[0].message.content or ""
 
 
-def _structured(base_url: str, model: str, messages: list, schema: type[BaseModel]) -> BaseModel:
-    return schema.model_validate(extract_json(_chat(base_url, model, messages, schema)))
+def _structured(base_url: str, model: str, messages: list, schema: type[BaseModel], kind: str = "reasoning") -> BaseModel:
+    text = _chat(base_url, model, messages, schema, kind)
+    try:
+        return schema.model_validate(extract_json(text))
+    except Exception as e:  # the call worked but the output was unusable: that is a processing failure, record it
+        mark(kind, e)
+        raise
 
 
 def image_data_url(data: bytes) -> str:
@@ -135,7 +161,7 @@ class Vision:
                 {"type": "image_url", "image_url": {"url": image_data_url(data)}},
             ]},
         ]
-        return _structured(config.VLM_URL, config.VLM_MODEL, msgs, ObservationList)
+        return _structured(config.VLM_URL, config.VLM_MODEL, msgs, ObservationList, kind="vision")
 
     def health(self) -> str:
         return probe(config.VLM_URL)
@@ -146,11 +172,11 @@ class Reasoning:
 
     def structured(self, system: str, user: str, schema: type[BaseModel]) -> BaseModel:
         msgs = [{"role": "system", "content": system}, {"role": "user", "content": user}]
-        return _structured(config.LLM_URL, config.LLM_MODEL, msgs, schema)
+        return _structured(config.LLM_URL, config.LLM_MODEL, msgs, schema, kind="reasoning")
 
     def complete(self, system: str, user: str) -> str:
         msgs = [{"role": "system", "content": system}, {"role": "user", "content": user}]
-        return strip_think(_chat(config.LLM_URL, config.LLM_MODEL, msgs))
+        return strip_think(_chat(config.LLM_URL, config.LLM_MODEL, msgs, kind="reasoning"))
 
     def health(self) -> str:
         return probe(config.LLM_URL)
@@ -160,7 +186,12 @@ class Speech:
     name = f"{config.STT_MODEL} @ {config.STT_URL}"
 
     def transcribe(self, data: bytes, filename: str) -> str:
-        r = _client(config.STT_URL).audio.transcriptions.create(model=config.STT_MODEL, file=(filename, data))
+        try:
+            r = _client(config.STT_URL).audio.transcriptions.create(model=config.STT_MODEL, file=(filename, data))
+        except Exception as e:
+            mark("speech", e)
+            raise
+        mark("speech")
         return r.text.strip()
 
     def health(self) -> str:
@@ -174,10 +205,12 @@ class Embedding:
         """None when the embedding server is down: callers degrade to keyword retrieval (fail downward)."""
         try:
             r = _client(config.EMBED_URL, 30).embeddings.create(model=config.EMBED_MODEL, input=texts)
-            return [d.embedding for d in r.data]
         except Exception as e:
+            mark("embedding", e)
             log.warning("embeddings unavailable (%s); keyword retrieval only", e)
             return None
+        mark("embedding")
+        return [d.embedding for d in r.data]
 
     def health(self) -> str:
         return probe(config.EMBED_URL)

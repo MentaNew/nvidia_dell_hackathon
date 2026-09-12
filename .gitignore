@@ -6,5 +6,7 @@ data/uploads/*
 !data/uploads/.gitkeep
 data/*.db
 data/map.png
+data/inbox/
+data/logs/
 node_modules/
 .pytest_cache/

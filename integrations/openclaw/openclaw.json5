@@ -1,0 +1,37 @@
+// OpenClaw config for the RescueBase GB10: ONE local provider, no cloud catalog, no write/web tools.
+// Install to ~/.openclaw/openclaw.json (JSON5: comments allowed). Docs: https://docs.openclaw.ai/providers/vllm
+{
+  models: {
+    // "replace" drops every built-in (cloud) provider catalog: the only model OpenClaw can reach is the local one below.
+    mode: "replace",
+    providers: {
+      vllm: {
+        baseUrl: "http://127.0.0.1:8001/v1",   // scripts/serve_models.sh vlm
+        apiKey: "vllm-local",                  // placeholder; the local server has no auth
+        api: "openai-completions",
+        timeoutSeconds: 300,
+        models: [
+          {
+            id: "qwen3-vl",
+            name: "Qwen3-VL 30B-A3B FP8 (local vLLM)",
+            reasoning: false,
+            input: ["text", "image"],
+            contextWindow: 16384,
+            maxTokens: 2048,
+            // If tool calls come back as raw text with Qwen, uncomment (see the vLLM provider page):
+            // params: { extra_body: { tool_choice: "required" } },
+          },
+        ],
+      },
+    },
+  },
+  agents: {
+    defaults: { model: { primary: "vllm/qwen3-vl" } },
+    entries: {
+      main: {
+        // exec + read only: the skill script talks to the local API; the agent cannot edit files or browse.
+        tools: { profile: "coding", deny: ["write", "edit", "apply_patch", "group:web"] },
+      },
+    },
+  },
+}

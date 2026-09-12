@@ -44,3 +44,18 @@ MAX_IMAGE_PX = int(_get("MAX_IMAGE_PX", "1280"))  # images are downscaled to thi
 
 NET_PROBE = _get("NET_PROBE", "http://connectivitycheck.gstatic.com/generate_204")  # HTTP URL that defines "external network"
 MAP_BOUNDS = _get("MAP_BOUNDS", "")  # "min_lon,min_lat,max_lon,max_lat" georeferencing data/map.png
+
+# Always-on ingestion: files dropped into the inbox (or a label subfolder: inbox/exercise, inbox/replay, ...) are
+# processed automatically once they stop changing. Identity is the content hash, persisted in the store.
+INBOX_ENABLED = _get("INBOX_ENABLED", "1") == "1"
+INBOX_DIR = Path(_get("INBOX", str(DATA_DIR / "inbox")))
+INBOX_SCAN_S = float(_get("INBOX_SCAN_S", "2"))  # seconds between inbox scans
+INBOX_SETTLE_S = float(_get("INBOX_SETTLE_S", "2"))  # a file must be unchanged this long before it is read
+INBOX_QUEUE = int(_get("INBOX_QUEUE", "32"))  # bounded queue; extra files wait for the next scan
+INFER_CONCURRENCY = int(_get("INFER_CONCURRENCY", "1"))  # ingest workers = concurrent model calls
+INGEST_RETRIES = int(_get("INGEST_RETRIES", "2"))  # retries after the first failed attempt
+INBOX_DEFAULT_LABEL = _get("INBOX_DEFAULT_LABEL", "UNKNOWN")  # LIVE | REPLAY | ARCHIVAL | EXERCISE | SATELLITE | UNKNOWN
+
+# Recorded-replay video: sample one frame every N seconds for inference (playback itself is real time)
+FRAME_INTERVAL_S = float(_get("FRAME_INTERVAL_S", "10"))
+FRAME_MAX = int(_get("FRAME_MAX", "12"))

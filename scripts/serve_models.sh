@@ -20,8 +20,10 @@ LOGS=$(dirname "$0")/../data/logs; mkdir -p "$LOGS"
 
 serve() {
   case $1 in
-    vlm)   vllm serve "$M/vision/qwen3-vl-30b-a3b-instruct-fp8" --served-model-name qwen3-vl --port 8001 \
-             --gpu-memory-utilization 0.40 --max-model-len 16384 --limit-mm-per-prompt '{"image":4}' ;;
+    vlm)   # tool-call flags are for the OpenClaw agent loop (integrations/openclaw); RescueBase itself does not need them
+           vllm serve "$M/vision/qwen3-vl-30b-a3b-instruct-fp8" --served-model-name qwen3-vl --port 8001 \
+             --gpu-memory-utilization 0.40 --max-model-len 16384 --limit-mm-per-prompt '{"image":4}' \
+             --enable-auto-tool-choice --tool-call-parser hermes ;;
     llm)   # NVFP4 needs Blackwell kernels. Fallback: "$M/reasoning/qwen3.5-35b-a3b-fp8" (same flags, name it the same)
            vllm serve "$M/reasoning/nemotron-3-nano-30b-a3b-nvfp4" --served-model-name nemotron-nano --port 8002 \
              --gpu-memory-utilization 0.25 --max-model-len 16384 --trust-remote-code ;;

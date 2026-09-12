@@ -13,7 +13,7 @@ from . import config
 
 log = logging.getLogger("rescuebase")
 
-ID_FIELD = {"events": "event_id", "sources": "source_id", "transcripts": "source_id"}
+ID_FIELD = {"events": "event_id", "sources": "source_id", "transcripts": "source_id", "jobs": "job_id", "updates": "update_id"}
 
 
 def _match(doc: dict, filt: dict) -> bool:
