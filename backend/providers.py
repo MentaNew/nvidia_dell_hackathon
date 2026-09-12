@@ -9,8 +9,8 @@ import io
 import json
 import logging
 import re
-import socket
 import time
+import urllib.request
 from functools import lru_cache
 
 from openai import BadRequestError, OpenAI
@@ -248,15 +248,18 @@ _net: tuple[float, str] = (0.0, "UNKNOWN")
 
 
 def network_state() -> str:
-    """ONLINE if a TCP connect to RESCUEBASE_NET_PROBE succeeds within 1.5s. Cached 3s."""
+    """ONLINE if an HTTP GET of RESCUEBASE_NET_PROBE returns a status < 400 within 2s. Cached 3s.
+
+    A bare TCP connect is not enough: VPNs, sandboxes and transparent proxies complete the handshake locally, so an
+    unplugged cable would still read ONLINE. Requiring a real HTTP response from an external host fixes that.
+    """
     global _net
     if time.time() - _net[0] < 3:
         return _net[1]
-    host, _, port = config.NET_PROBE.rpartition(":")
     try:
-        socket.create_connection((host, int(port)), timeout=1.5).close()
-        state = "ONLINE"
-    except OSError:
+        with urllib.request.urlopen(config.NET_PROBE, timeout=2) as r:
+            state = "ONLINE" if r.status < 400 else "OFFLINE"
+    except Exception:
         state = "OFFLINE"
     _net = (time.time(), state)
     return state

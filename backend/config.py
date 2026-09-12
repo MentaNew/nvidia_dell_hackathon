@@ -42,5 +42,5 @@ EMBED_MODEL = _get("EMBED_MODEL", "nemotron-embed")
 THINKING = _get("THINKING", "0") == "1"  # reasoning-model <think> mode; off for demo latency
 MAX_IMAGE_PX = int(_get("MAX_IMAGE_PX", "1280"))  # images are downscaled to this before the VLM sees them
 
-NET_PROBE = _get("NET_PROBE", "1.1.1.1:443")  # TCP connect target that defines "external network"
+NET_PROBE = _get("NET_PROBE", "http://connectivitycheck.gstatic.com/generate_204")  # HTTP URL that defines "external network"
 MAP_BOUNDS = _get("MAP_BOUNDS", "")  # "min_lon,min_lat,max_lon,max_lat" georeferencing data/map.png
