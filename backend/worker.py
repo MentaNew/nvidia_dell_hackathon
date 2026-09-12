@@ -155,6 +155,13 @@ class Worker:
                    "duplicate_paths": [], "dropped_at": dropped, "created_at": now_iso(), "updated_at": now_iso()}
         return "enqueued" if self._enqueue(job) else "wait"
 
+    def _patch(self, job: dict, patch: dict) -> dict:
+        """Merge into the stored job (never replace: the scanner may record duplicate_paths concurrently)."""
+        job.update(patch)
+        if self.store.update("jobs", job["job_id"], patch) is None:
+            self.store.insert("jobs", job)
+        return job
+
     def _enqueue(self, job: dict) -> bool:
         with self.lock:
             if job["job_id"] in self.active:
@@ -165,8 +172,7 @@ class Worker:
                 log.warning("inbox queue full (%d); %s waits for a later scan", self.q.maxsize, job["name"])
                 return False
             self.active.add(job["job_id"])
-        job.update(status="queued", updated_at=now_iso())
-        self.store.insert("jobs", job)
+        self._patch(job, {"status": "queued", "updated_at": now_iso()})
         return True
 
     def _requeue(self, job: dict) -> None:
@@ -179,33 +185,29 @@ class Worker:
 
     def run_job(self, job: dict) -> dict:
         job_id, p = job["job_id"], Path(job["path"])
-        job = self.store.get("jobs", job_id) or job  # keep duplicate_paths etc. recorded since enqueue
-        job.update(status="processing", attempts=job["attempts"] + 1, started_at=now_iso(), updated_at=now_iso())
-        self.store.insert("jobs", job)
+        job = self.store.get("jobs", job_id) or job
+        self._patch(job, {"status": "processing", "attempts": job["attempts"] + 1, "started_at": now_iso(), "updated_at": now_iso()})
         t0 = time.time()
         try:
             meta = sidecar_meta(p)
             r = self.pipe.ingest(p.name, p.read_bytes(), job_id=job_id, **meta)
-            job.update(status="completed", source_id=r["source"]["source_id"], event_ids=[e["event_id"] for e in r["events"]],
-                       error=None, duration_s=round(time.time() - t0, 2), finished_at=now_iso(), updated_at=now_iso())
-            log.info("inbox: %s -> %d event(s) in %.1fs", p.name, len(job["event_ids"]), job["duration_s"])
+            patch = {"status": "completed", "source_id": r["source"]["source_id"], "event_ids": [e["event_id"] for e in r["events"]],
+                     "error": None, "duration_s": round(time.time() - t0, 2), "finished_at": now_iso(), "updated_at": now_iso()}
+            log.info("inbox: %s -> %d event(s) in %.1fs", p.name, len(patch["event_ids"]), patch["duration_s"])
         except Exception as e:
             err = f"{type(e).__name__}: {getattr(e, 'detail', None) or str(e)[:300]}"
             retry = job["attempts"] <= self.retries
-            job.update(status="retrying" if retry else "failed", error=err, duration_s=round(time.time() - t0, 2),
-                       updated_at=now_iso())
+            patch = {"status": "retrying" if retry else "failed", "error": err, "duration_s": round(time.time() - t0, 2),
+                     "updated_at": now_iso()}
             log.warning("inbox: %s failed (attempt %d/%d): %s", p.name, job["attempts"], self.retries + 1, err)
             if retry:
-                delay = min(2 ** job["attempts"], 30)
-                job["next_attempt_at"] = now_iso()
-                t = threading.Timer(delay, self._requeue, [job])
+                t = threading.Timer(min(2 ** job["attempts"], 30), self._requeue, [job])
                 t.daemon = True
                 t.start()
         finally:
             with self.lock:
                 self.active.discard(job_id)
-        self.store.insert("jobs", job)
-        return job
+        return self._patch(job, patch)
 
     # ------------------------------------------------------------ status
 

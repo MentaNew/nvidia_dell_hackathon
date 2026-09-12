@@ -39,6 +39,8 @@ details#manual { margin-top: 10px; border: 1px dashed var(--line); border-radius
 details#manual summary { cursor: pointer; font-size: 13px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
 #ingest { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 
+#rec-row { margin: 8px 0 4px; }
+#rec-btn { background: var(--bad); border-color: var(--bad); }
 .job { padding: 5px 0; border-bottom: 1px dashed var(--line); font-size: 13.5px; line-height: 1.5; }
 .update { border: 1px solid var(--line); border-left: 5px solid var(--warn); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; }
 .update.v-HUMAN_CONFIRMED { border-left-color: var(--ok); }

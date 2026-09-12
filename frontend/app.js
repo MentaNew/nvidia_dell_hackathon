@@ -210,6 +210,39 @@ function renderMap() {
 }
 $("#map").addEventListener("click", (ev) => { const p = ev.target.closest(".pin"); if (p) select(p.dataset.id); });
 
+// ---------------------------------------------------------------- exercise radio message: record here, drop into the inbox
+let rec = null, chunks = [];
+$("#rec-btn").addEventListener("click", async () => {
+  const btn = $("#rec-btn"), st = $("#rec-status");
+  if (rec && rec.state === "recording") { rec.stop(); return; }
+  if (!navigator.mediaDevices?.getUserMedia) { st.textContent = "Microphone needs a secure context: open the UI on localhost (or drop a file into the inbox)."; return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    rec = new MediaRecorder(stream);
+    chunks = [];
+    rec.ondataavailable = (e) => chunks.push(e.data);
+    rec.onstop = async () => {
+      stream.getTracks().forEach((t) => t.stop());
+      btn.textContent = "● Record exercise radio message";
+      const ext = (rec.mimeType || "audio/webm").includes("ogg") ? "ogg" : "webm";
+      const fd = new FormData();
+      fd.append("file", new Blob(chunks, { type: rec.mimeType || "audio/webm" }), `radio_${new Date().toISOString().replace(/[:.]/g, "-")}.${ext}`);
+      fd.append("label", "EXERCISE");
+      fd.append("sector", $("#rec-sector").value.trim());
+      fd.append("note", "recorded in the RescueBase UI (exercise)");
+      st.textContent = "Dropped into the inbox; the worker will transcribe it locally…";
+      try { const r = await api("/api/inbox/drop", { method: "POST", body: fd }); st.textContent = `Queued: ${r.path.split(/[\\/]/).pop()} (${(r.bytes / 1024).toFixed(0)} KB). Watch the job below.`; }
+      catch (e) { st.textContent = "Drop failed: " + e.message; }
+      await refreshIngest();
+    };
+    rec.start();
+    btn.textContent = "■ Stop recording and send";
+    st.textContent = "Recording… say the identifier chosen by the audience.";
+  } catch (e) {
+    st.textContent = "Microphone unavailable: " + e.message;
+  }
+});
+
 // ---------------------------------------------------------------- manual ingest
 $("#ingest").addEventListener("submit", async (ev) => {
   ev.preventDefault();

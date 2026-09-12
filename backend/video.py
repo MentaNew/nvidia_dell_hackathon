@@ -23,6 +23,23 @@ def ffmpeg_exe() -> str | None:
         return None
 
 
+def to_wav(data: bytes, ext: str) -> bytes:
+    """Transcode any recording (browser .webm/.ogg, phone .m4a, ...) to 16 kHz mono WAV for the speech endpoint.
+    Without ffmpeg the bytes pass through unchanged and the speech server has to cope."""
+    exe = ffmpeg_exe()
+    if not exe:
+        return data
+    with tempfile.TemporaryDirectory() as td:
+        src, dst = Path(td) / f"in{ext}", Path(td) / "out.wav"
+        src.write_bytes(data)
+        cmd = [exe, "-hide_banner", "-loglevel", "error", "-y", "-i", str(src), "-vn", "-ac", "1", "-ar", "16000", "-f", "wav", str(dst)]
+        try:
+            subprocess.run(cmd, check=True, capture_output=True, timeout=120)
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"audio transcode failed: {e.stderr.decode(errors='replace')[:300]}") from e
+        return dst.read_bytes()
+
+
 def extract_frames(path: Path, interval_s: float | None = None, max_frames: int | None = None) -> list[tuple[float, bytes]]:
     """[(offset_seconds, jpeg_bytes), ...] sampled every interval_s from the start of the clip."""
     interval_s = interval_s or config.FRAME_INTERVAL_S

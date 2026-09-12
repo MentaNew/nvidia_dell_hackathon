@@ -160,6 +160,33 @@ def test_worker():
     assert j["status"] == "failed" and j["attempts"] == 2
 
 
+def test_audio_paths():
+    """WAV goes straight to the speech provider; browser/phone formats are transcoded to WAV first (needs ffmpeg)."""
+    import wave
+    from backend.video import ffmpeg_exe
+
+    pipe.store.clear(INCIDENT)
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1), w.setsampwidth(2), w.setframerate(16000), w.writeframes(b"\x00\x00" * 16000)
+    r = c.post("/api/ingest", files={"file": ("radio_a.wav", buf.getvalue(), "audio/wav")}, data={"label": "EXERCISE", "sector": "Sector 3"})
+    assert r.status_code == 200, r.text
+    ev = r.json()["events"][0]
+    assert ev["source_type"] == "audio" and ev["simulated"] and "radio_a.wav" in r.json()["transcript"]
+    assert c.get(f"/api/transcripts/{ev['source_id']}").json()["text"] == r.json()["transcript"]
+    exe = ffmpeg_exe()
+    if not exe:
+        print("SKIP webm transcode test: no ffmpeg")
+        return
+    clip = Path(tempfile.mkdtemp(prefix="rescuebase-audio-")) / "msg.webm"
+    subprocess.run([exe, "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=1",
+                    "-c:a", "libopus", str(clip)], check=True)
+    r = c.post("/api/ingest", files={"file": ("msg.webm", clip.read_bytes(), "audio/webm")}, data={"label": "EXERCISE"})
+    assert r.status_code == 200, r.text
+    assert "msg.wav" in r.json()["transcript"]  # the stub echoes the (transcoded) filename it received
+    assert c.get(r.json()["events"][0]["source_uri"]).status_code == 200  # the original recording stays the evidence
+
+
 def test_video_frames():
     from backend.video import ffmpeg_exe
 
@@ -190,5 +217,6 @@ if __name__ == "__main__":
     test_extract_json()
     test_slice()
     test_worker()
+    test_audio_paths()
     test_video_frames()
     print("OK: stub tests passed (provider=stub, store=%s)" % pipe.store.kind)

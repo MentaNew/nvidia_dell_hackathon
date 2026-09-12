@@ -59,6 +59,11 @@ Any OpenAI-compatible server works (vLLM, NIM, llama.cpp, Ollama): point `RESCUE
 - **Measured:** `GET /api/ingest/status` reports drop→entry seconds (file mtime → saved event) per completed job,
   with median and max. That is the "time to a usable incident entry" figure: same exercise inputs, small sample,
   method stated here.
+- **Delivering inputs:** copy files into the folder (USB, scp, a synced share), or `POST /api/inbox/drop`
+  (multipart `file`, `label`, `sector`), which the UI's **● Record exercise radio message** button uses: it records
+  from the browser microphone and drops the recording into `inbox/exercise/`. Browser and phone formats
+  (webm/ogg/m4a) are transcoded to 16 kHz WAV before Whisper; the original recording stays the evidence.
+  Microphone capture needs a secure context: use the UI on `localhost` (the GB10's own browser) or drop files.
 
 ## Recorded replay (video)
 

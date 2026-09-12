@@ -1,5 +1,8 @@
 """RescueBase API + static UI + always-on inbox worker.  Run:  uvicorn backend.app:app --host 0.0.0.0 --port 8000"""
+import json
 import logging
+import uuid
+from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.staticfiles import StaticFiles
@@ -62,6 +65,27 @@ def ingest(file: UploadFile = File(...), sector: str = Form(""), label: str = Fo
     return pipe.ingest(file.filename or "upload", data, sector=sector.strip() or None, label=label.strip() or None,
                        simulated=sim, note=note.strip(), captured_at=captured_at.strip() or None,
                        captured_at_source="operator" if captured_at.strip() else None)
+
+
+@app.post("/api/inbox/drop")
+def inbox_drop(file: UploadFile = File(...), label: str = Form("EXERCISE"), sector: str = Form(""), note: str = Form("")):
+    """Deliver a file into the always-on inbox (browser recorder, phone, another laptop). The worker does the rest."""
+    if not worker:
+        raise HTTPException(503, "inbox worker disabled (RESCUEBASE_INBOX_ENABLED=0)")
+    data = file.file.read()
+    if not data:
+        raise HTTPException(400, "empty file")
+    lbl = (label.strip().upper() or "UNKNOWN")
+    folder = worker.inbox / lbl.lower()
+    folder.mkdir(parents=True, exist_ok=True)
+    src = Path(file.filename or "drop.bin")
+    dest = folder / f"{src.stem}_{uuid.uuid4().hex[:6]}{src.suffix.lower()}"
+    if sector.strip() or note.strip():
+        dest.with_name(dest.name + ".json").write_text(json.dumps({"sector": sector.strip() or None, "note": note.strip()}), encoding="utf-8")
+    part = dest.with_name(dest.name + ".part")  # written under a skipped suffix, then renamed: never seen half-written
+    part.write_bytes(data)
+    part.replace(dest)
+    return {"path": str(dest), "label": lbl, "bytes": len(data), "note": "queued for the inbox worker (settle + scan, a few seconds)"}
 
 
 @app.get("/api/events")

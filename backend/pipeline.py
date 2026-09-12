@@ -131,7 +131,8 @@ class Pipeline:
             model = self.vision.name
         elif ext in AUDIO_EXT:
             stype = SourceType.audio
-            transcript = self.speech.transcribe(data, filename)
+            wav = data if ext in (".wav", ".mp3", ".flac") else video.to_wav(data, ext)  # browser/phone formats -> WAV
+            transcript = self.speech.transcribe(wav, filename if wav is data else Path(filename).stem + ".wav")
             obs = self.reasoning.structured(providers.REPORT_SYSTEM, transcript, ObservationList)
             model = f"{self.speech.name} + {self.reasoning.name}"
         else:
