@@ -203,14 +203,38 @@ def test_telemetry():
     except ValueError:
         pass
 
+    # one unified-memory figure: nvidia-smi preferred, procfs fallback, never both, never zero-filled
+    m = telemetry.unified_memory(g, {"ram_used_mib": 1, "ram_total_mib": 2})
+    assert m["source"].startswith("nvidia-smi") and m["used_mib"] == 41234 and m["pct"] == 33.6
+    m = telemetry.unified_memory(g2, {"ram_used_mib": 61440, "ram_total_mib": 122880})
+    assert m["source"].startswith("procfs") and m["pct"] == 50.0
+    assert telemetry.unified_memory(g2, None) is None and telemetry.unified_memory(None, None) is None
+    d = telemetry.detection(None)
+    assert d["detected"] is False and d["method"] == "none" and "never invents" in d["override_hint"]
+
     t = c.get("/api/telemetry").json()
-    assert t["host"]["hostname"] and t["host"]["provider_mode"] == "stub"
+    assert t["host"]["hostname"] and t["host"]["provider_mode"] == "stub" and t["host"]["detection"]["method"] in ("none", "nvidia-smi GPU name", "override RESCUEBASE_ASSUME_GB10=1")
     if not t["host"]["gb10_detected"]:  # this laptop
-        assert t["gpu"] is None and t["system"] is None and t["unavailable_reason"] == telemetry.UNAVAILABLE
+        assert t["gpu"] is None and t["memory"] is None and t["system"] is None and t["unavailable_reason"] == telemetry.UNAVAILABLE
     assert t["inference"]["vision"]["latency"] is None and "STUB" in t["inference"]["vision"]["note"]
     assert t["inference_state"] == "STUB" and t["store"]["kind"] in ("sqlite", "mongo")
     assert "events" in t["log"] and isinstance(t["ingestion"]["counts"], dict)
-    assert any("NOT TESTED" in n for n in t["notes"])
+    assert any("UNVERIFIED" in n for n in t["notes"])
+
+    # history: 1 Hz samples with None (not 0) for unsupported readings, model-call spans, job markers
+    s = telemetry.sample_once(None)
+    assert set(s) >= {"t", "gb10", "gpu_util", "mem_pct", "mem_source", "queue", "active"}
+    if not s["gb10"]:
+        assert s["gpu_util"] is None and s["mem_pct"] is None and s["mem_source"] is None
+    telemetry.mark_job("job_test", "clip.mp4", "start")
+    telemetry.mark_job("job_test", "clip.mp4", "end", status="completed", duration_s=1.5, drop_to_entry_s=4.0, events=3)
+    telemetry.mark_job("manual", "radio.wav", "end", status="failed", duration_s=0.2)
+    hist = c.get("/api/telemetry/history?seconds=60").json()
+    assert hist["seconds"] == 60 and hist["hz"] == 1 and set(hist["calls"]) == {"vision", "reasoning", "speech", "embedding"}
+    assert all(v == [] for v in hist["calls"].values())  # stubs never produce latency samples
+    kinds = {(j["name"], j["kind"], j["phase"]) for j in hist["jobs"]}
+    assert ("clip.mp4", "vision", "start") in kinds and ("clip.mp4", "vision", "end") in kinds and ("radio.wav", "transcription", "end") in kinds
+    assert all(sm["gpu_util"] is None for sm in hist["samples"]) or hist["gb10"]
     assert c.get("/live.html").status_code == 200 and c.get("/live.js").status_code == 200
 
 

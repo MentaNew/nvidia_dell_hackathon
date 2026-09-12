@@ -1,6 +1,7 @@
 """RescueBase API + static UI + always-on inbox worker.  Run:  uvicorn backend.app:app --host 0.0.0.0 --port 8000"""
 import json
 import logging
+import time
 import uuid
 from pathlib import Path
 
@@ -23,6 +24,7 @@ pipe = Pipeline(open_store())
 worker = Worker(pipe) if config.INBOX_ENABLED else None
 if worker:
     worker.start()
+telemetry.start_sampler(lambda: worker)  # 1 Hz history for the Live GB10 page
 log.info("provider=%s store=%s incident=%s demo=%s inbox=%s", config.PROVIDER, pipe.store.kind, config.INCIDENT_ID,
          config.DEMO_MODE, config.INBOX_DIR if worker else "disabled")
 
@@ -55,6 +57,12 @@ def telemetry_snapshot():
     return telemetry.snapshot(pipe, worker)
 
 
+@app.get("/api/telemetry/history")
+def telemetry_history(seconds: int = 60):
+    """1 Hz samples, model-call spans and job markers for the last N seconds (kept server-side across page loads)."""
+    return telemetry.history(seconds)
+
+
 @app.get("/api/ingest/status")
 def ingest_status():
     return worker.status() if worker else {"enabled": False, "inbox": str(config.INBOX_DIR), "running": False,
@@ -68,9 +76,17 @@ def ingest(file: UploadFile = File(...), sector: str = Form(""), label: str = Fo
     if not data:
         raise HTTPException(400, "empty file")
     sim = None if simulated == "" else simulated.lower() in ("1", "true", "on", "yes")
-    return pipe.ingest(file.filename or "upload", data, sector=sector.strip() or None, label=label.strip() or None,
-                       simulated=sim, note=note.strip(), captured_at=captured_at.strip() or None,
-                       captured_at_source="operator" if captured_at.strip() else None)
+    name = file.filename or "upload"
+    telemetry.mark_job("manual", name, "start")
+    t0 = time.time()
+    try:
+        r = pipe.ingest(name, data, sector=sector.strip() or None, label=label.strip() or None, simulated=sim, note=note.strip(),
+                        captured_at=captured_at.strip() or None, captured_at_source="operator" if captured_at.strip() else None)
+    except Exception:
+        telemetry.mark_job("manual", name, "end", status="failed", duration_s=round(time.time() - t0, 2))
+        raise
+    telemetry.mark_job("manual", name, "end", status="completed", duration_s=round(time.time() - t0, 2), events=len(r["events"]))
+    return r
 
 
 @app.post("/api/inbox/drop")

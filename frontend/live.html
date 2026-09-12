@@ -8,12 +8,16 @@
 <style>
   body { height: auto; min-height: 100vh; }
   header#top { height: auto; min-height: 48px; flex-wrap: wrap; padding: 6px 16px; row-gap: 6px; }
-  header#top .status { flex-wrap: wrap; justify-content: flex-start; }
+  header#top .status { flex-wrap: wrap; justify-content: flex-start; align-items: center; }
   #src { flex: none; padding: 8px 16px; font-weight: 700; font-size: 15px; color: #fff; background: var(--bad); }
   #src.ok { background: var(--ok); }
+  #src .small { font-weight: 400; opacity: .9; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; padding: 10px; }
-  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; }
-  .tile h2 { margin-bottom: 10px; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; min-width: 0; }
+  .tile.wide { grid-column: 1 / -1; }
+  .tile h2 { margin-bottom: 8px; }
+  .tile h2 .sub { text-transform: none; letter-spacing: 0; font-weight: 400; margin-left: 8px; }
+  canvas.graph { display: block; width: 100%; height: 170px; }
   .kv { display: grid; grid-template-columns: minmax(110px, 40%) 1fr; gap: 4px 10px; font-size: 14px; line-height: 1.5; }
   .kv .k { color: var(--muted); }
   .big { font-size: 26px; font-weight: 700; line-height: 1.2; margin-bottom: 6px; }
@@ -22,8 +26,7 @@
   .bar > i { display: block; height: 100%; background: var(--accent); }
   .prov { border-top: 1px dashed var(--line); padding: 6px 0; }
   .prov:first-of-type { border-top: 0; }
-  .foot { padding: 4px 16px 16px; font-size: 12.5px; color: var(--muted); }
-  a.back { color: #fff; text-decoration: none; font-size: 13px; }
+  .foot { padding: 4px 16px 16px; font-size: 12.5px; color: var(--warn); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -34,18 +37,23 @@
     <span class="pill" id="inf">LOCAL INFERENCE: …</span>
     <span class="pill" id="store">LOCAL LOG: …</span>
     <span class="pill" id="ing">INGESTION: …</span>
-    <a class="pill back" href="/">← Incident log</a>
+    <a class="btn-live" href="/">← Back to incident log</a>
   </div>
 </header>
 <div id="src">Connecting…</div>
 
 <div class="grid">
+  <section class="tile wide"><h2>GPU utilization <span class="sub muted">fixed 0–100 % · ▲ job start · ▼ job end (V vision · T transcription · R report) · shaded = model call in flight</span></h2><canvas class="graph" id="g-util"></canvas></section>
+  <section class="tile wide"><h2>Unified memory used <span class="sub muted" id="mem-sub">fixed 0–100 % of the single GB10 pool (one figure, not RAM + VRAM)</span></h2><canvas class="graph" id="g-mem"></canvas></section>
+  <section class="tile wide"><h2>Latency <span class="sub muted">● model-call latency (per call, seconds) vs ◆ queue→event (drop → saved event, seconds): different things, plotted separately</span></h2><canvas class="graph" id="g-lat"></canvas></section>
+
   <section class="tile" id="t-gpu"><h2>GPU</h2><div class="na">Loading…</div></section>
+  <section class="tile" id="t-mem"><h2>Unified memory</h2><div class="na">Loading…</div></section>
   <section class="tile" id="t-sys"><h2>System</h2><div class="na">Loading…</div></section>
   <section class="tile" id="t-inf"><h2>Inference (per provider)</h2><div class="na">Loading…</div></section>
   <section class="tile" id="t-ing"><h2>Ingestion</h2><div class="na">Loading…</div></section>
   <section class="tile" id="t-log"><h2>Incident log</h2><div class="na">Loading…</div></section>
-  <section class="tile" id="t-host"><h2>Host</h2><div class="na">Loading…</div></section>
+  <section class="tile" id="t-host"><h2>Host and GB10 detection</h2><div class="na">Loading…</div></section>
 </div>
 <div class="foot" id="notes"></div>
 

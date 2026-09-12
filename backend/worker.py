@@ -12,7 +12,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import config
+from . import config, telemetry
 from .models import Label, now_iso
 
 log = logging.getLogger("rescuebase")
@@ -187,6 +187,7 @@ class Worker:
         job_id, p = job["job_id"], Path(job["path"])
         job = self.store.get("jobs", job_id) or job
         self._patch(job, {"status": "processing", "attempts": job["attempts"] + 1, "started_at": now_iso(), "updated_at": now_iso()})
+        telemetry.mark_job(job_id, p.name, "start")
         t0 = time.time()
         try:
             meta = sidecar_meta(p)
@@ -207,6 +208,9 @@ class Worker:
         finally:
             with self.lock:
                 self.active.discard(job_id)
+        telemetry.mark_job(job_id, p.name, "end", status=patch["status"], duration_s=patch.get("duration_s"),
+                           drop_to_entry_s=_seconds_between(job.get("dropped_at"), patch.get("finished_at")),
+                           events=len(patch.get("event_ids") or []))
         return self._patch(job, patch)
 
     # ------------------------------------------------------------ status

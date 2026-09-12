@@ -88,13 +88,21 @@ agreement between them is not confirmation, conflicting reports are both kept.
 
 ## Live GB10 page
 
-`http://localhost:8000/live.html` (link in the header) polls `GET /api/telemetry` every 2 s: GPU name, memory,
-utilization, temperature and power from `nvidia-smi`; RAM and load from procfs; per-provider inference latency
-(p50/p95 over the last 200 real calls), runs and last success; ingestion queue, throughput and drop→entry;
-log counts; network and store. Hardware readings are shown only when the server detects an NVIDIA GB10
-(`nvidia-smi` name contains "GB10", or `RESCUEBASE_ASSUME_GB10=1`); on any other host they read
-"Unavailable — awaiting GB10 telemetry" and the banner names the source host. Stub providers never produce latency
-figures. The hardware path is NOT TESTED on a GB10 yet: only the parser and the unavailable path were tested.
+`http://localhost:8000/live.html` (blue **LIVE GB10 →** button in the header; **← Back to incident log** on the page).
+Three scrolling graphs update every second from a server-side 1 Hz ring buffer (`GET /api/telemetry/history`,
+3 min kept, so 60 s of history survives page navigation): GPU utilization on a fixed 0–100 % scale with ▲ job
+start / ▼ job end markers (V vision, T transcription, R report) and shaded model-call spans; unified memory used on
+a fixed 0–100 % scale; latency, where ● per-call model latency and ◆ queue→event (file drop → saved event) are plotted
+as separate series because they measure different things. Tiles (`GET /api/telemetry`, every 2 s) show GPU, one
+unified-memory figure (the GB10 has a single pool: nvidia-smi if it reports it, else procfs, never RAM + VRAM),
+load, per-provider p50/p95, ingestion throughput, log counts, network, store, and the detection evidence.
+
+Hardware readings appear only when the server detects an NVIDIA GB10 (`nvidia-smi` GPU name contains "GB10").
+If automatic detection fails on the box, `RESCUEBASE_ASSUME_GB10=1` unlocks the real nvidia-smi/procfs readings;
+it never invents values. Anything a tool reports as N/A, and everything on a non-GB10 host, reads
+"Unavailable — awaiting GB10 telemetry" (graphs leave gaps, never zeros). Stub providers produce no latency.
+No CDN, no libraries: plain canvas. **Hardware telemetry is UNVERIFIED on a GB10** until the acceptance run; only
+the parsers, the unavailable path and the graphs were tested on a laptop.
 
 ## Four states in the header
 
