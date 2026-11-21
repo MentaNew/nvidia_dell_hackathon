@@ -1,5 +1,58 @@
 # RescueBase
 
+**Incident intelligence that keeps working when the network goes down.**
+
+[![Live demo](https://img.shields.io/badge/demo-try%20it%20in%20your%20browser-111111)](https://mentanew.github.io/nvidia_dell_hackathon/)
+[![Winner](https://img.shields.io/badge/winner-Dell%20%C3%97%20NVIDIA%20BuilderBase%20hackathon-b3261e)](#team)
+![Runs locally](https://img.shields.io/badge/inference-100%25%20local%20on%20a%20GB10-137333)
+
+**[▶ Try the live demo](https://mentanew.github.io/nvidia_dell_hackathon/)** · [How it works](#how-it-works) · [Run it](#run) · [Team](#team)
+
+When a disaster cuts connectivity, cloud AI disappears exactly when it is needed. RescueBase runs on one machine at
+the command post, a Dell Pro Max with GB10. Drone imagery and crew radio become source-linked **draft** events on a
+shared timeline, analysed entirely locally, and nothing is confirmed until a person confirms it.
+
+Built in about twelve hours at the Dell × NVIDIA BuilderBase hackathon at Cornell (September 2026), where it won.
+
+## Try it in your browser
+
+The [demo page](https://mentanew.github.io/nvidia_dell_hackathon/) runs a recreation of the command-post app on
+recorded inputs. A three-step guided tour shows the core loop first; then drop aerial photos and field reports
+into the inbox, cut the external internet, confirm or reject events, ask the log, and generate a SITREP.
+
+| Part of the demo | What it is |
+|---|---|
+| Inbox worker (content-hash deduplication, retries, provenance labels, capture vs ingest time) | Real logic, ported from `backend/` |
+| Review states, keyword retrieval, SITREP structure | Real logic, ported from `backend/` |
+| Text inputs | The fixtures from `tests/test_smoke.py` |
+| Aerial photos | Real public-domain FEMA photos (logged in [data/demo/ASSETS.md](data/demo/ASSETS.md)), standing in for drone frames |
+| Extracted events | Recorded for the page, following the app's extraction rules; on the GB10, Qwen3-VL produces them |
+
+## How it works
+
+```mermaid
+flowchart LR
+  A[Inbox<br/>drone frames, clips,<br/>radio audio] --> B[Local analysis on the GB10<br/>Qwen3-VL · Whisper<br/>served by vLLM]
+  B --> C[Draft events<br/>typed, source-linked,<br/>model-stated confidence]
+  C --> D[Shared timeline<br/>ask the log · SITREP]
+  D --> E[Human review<br/>confirm or reject]
+```
+
+- No victim or casualty claims, no dispatch orders, no "safe" or "passable" judgements.
+- Visual observations and spoken reports stay separate events; their agreement is not confirmation.
+- Locations come from EXIF or a sidecar file only, never from a model's guess.
+
+## Team
+
+| | |
+|---|---|
+| Franco Plathottathil | Product and application |
+| Yamin Mushtaq | Backend agent infrastructure (OpenClaw, OpenShell) |
+| El Mehdi El Kasmi | Model selection and testing |
+| Cezary | Demo assets |
+
+## Technical overview
+
 Always-on, local incident log for infrastructure site operations (hydropower site during a disruption is the worked
 example). Drone imagery and crew radio audio arrive in a local inbox; the GB10 analyses and transcribes them locally;
 every result becomes a structured, source-linked **draft** event on a shared timeline; people confirm or reject.

@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RescueBase · offline incident log for disaster response</title>
+<meta name="description" content="RescueBase turns drone imagery and radio audio into source-linked draft events, analysed entirely on a local Dell Pro Max with GB10. Winner of the Dell × NVIDIA BuilderBase hackathon. Try the working demo.">
+<meta property="og:title" content="RescueBase · offline incident log for disaster response">
+<meta property="og:description" content="Winner of the Dell × NVIDIA BuilderBase hackathon. A working demo of the command-post app, in your browser.">
+<meta property="og:type" content="website">
+<meta name="color-scheme" content="light">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%224%22 fill=%22%23111%22/%3E%3Ccircle cx=%228%22 cy=%228%22 r=%223%22 fill=%22%23b3261e%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="demo.css">
+<style>
+  :root { --ink: #111; --soft: #4a4f57; --line: #dde1e6; --bg: #f6f7f9; --accent: #b3261e; --ok: #137333; }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  a { color: inherit; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+  header.top { border-bottom: 1px solid var(--line); background: #fff; }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 14px; padding-bottom: 14px; }
+  .brand { font-weight: 700; letter-spacing: -0.01em; text-decoration: none; }
+  .top nav { display: flex; gap: 18px; font-size: 15px; }
+  .top nav a { color: var(--soft); text-decoration: none; }
+  .top nav a:hover { color: var(--ink); }
+  .hero { padding: 64px 0 40px; }
+  .badge { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 999px; background: #fff; border: 1px solid var(--line); font-size: 14px; }
+  .badge b { color: var(--accent); }
+  h1 { font-size: clamp(34px, 5vw, 56px); line-height: 1.05; letter-spacing: -0.035em; margin: 18px 0 0; max-width: 18ch; }
+  .lede { font-size: 19px; color: var(--soft); max-width: 60ch; margin: 18px 0 0; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 999px; font-weight: 600; font-size: 15px; text-decoration: none; }
+  .btn.primary { background: var(--ink); color: #fff; }
+  .btn.ghost { border: 1px solid #b9bec6; background: #fff; }
+  main > section { padding: 48px 0; border-top: 1px solid var(--line); }
+  h2 { font-size: clamp(26px, 3vw, 34px); letter-spacing: -0.025em; margin: 0 0 8px; }
+  .sub { color: var(--soft); margin: 0 0 24px; max-width: 70ch; }
+  .demo-grid { display: grid; gap: 28px; }
+  @media (min-width: 1000px) { .demo-grid { grid-template-columns: minmax(0, 1fr) 300px; align-items: start; } }
+  .try { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 20px; font-size: 15.5px; }
+  .try h3 { margin: 0 0 10px; font-size: 16px; }
+  .try ol { margin: 0; padding-left: 20px; list-style: decimal; }
+  .try li { margin: 6px 0; }
+  .note { margin-top: 12px; color: var(--soft); font-size: 14px; }
+  .flow { display: grid; gap: 10px; counter-reset: s; }
+  @media (min-width: 800px) { .flow { grid-template-columns: repeat(5, 1fr); } }
+  .flow div { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px; font-size: 15px; }
+  .flow div::before { counter-increment: s; content: counter(s); display: block; font: 600 12px ui-monospace, Menlo, monospace; color: var(--soft); margin-bottom: 4px; }
+  .rules { margin-top: 22px; display: grid; gap: 10px; }
+  @media (min-width: 800px) { .rules { grid-template-columns: repeat(3, 1fr); } }
+  .rules p { margin: 0; padding: 14px; border-left: 3px solid var(--ok); background: #fff; border-radius: 0 10px 10px 0; font-size: 15px; }
+  .real { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-size: 15.5px; }
+  .real th, .real td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .real th { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--soft); background: #fafbfc; }
+  .stack { display: flex; flex-wrap: wrap; gap: 8px; }
+  .stack span { padding: 6px 12px; border-radius: 999px; background: #fff; border: 1px solid var(--line); font-size: 14.5px; }
+  .team { display: grid; gap: 12px; }
+  @media (min-width: 800px) { .team { grid-template-columns: repeat(4, 1fr); } }
+  .team div { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .team b { display: block; }
+  .team span { color: var(--soft); font-size: 15px; }
+  footer { padding: 32px 0 56px; color: var(--soft); font-size: 14.5px; border-top: 1px solid var(--line); }
+  .skip { position: absolute; left: -999px; } .skip:focus { left: 12px; top: 12px; background: #fff; padding: 8px 12px; z-index: 10; }
+</style>
+</head>
+<body>
+<a class="skip" href="#demo-section">Skip to the demo</a>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#">RescueBase</a>
+    <nav aria-label="Page">
+      <a href="#demo-section">Demo</a>
+      <a href="#how">How it works</a>
+      <a href="#team">Team</a>
+      <a href="https://github.com/MentaNew/nvidia_dell_hackathon">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <span class="badge"><b>Winner</b> Dell × NVIDIA BuilderBase hackathon · Cornell · September 2026</span>
+    <h1>Incident intelligence that keeps working when the network goes down.</h1>
+    <p class="lede">When a disaster cuts connectivity, cloud AI disappears exactly when it is needed. RescueBase runs on one machine at the command post, a Dell Pro Max with GB10: drone imagery and crew radio become source-linked draft events on a shared timeline, analysed entirely locally. Nothing is confirmed until a person confirms it.</p>
+    <div class="actions">
+      <a class="btn primary" href="#demo-section">Try the demo ↓</a>
+      <a class="btn ghost" href="https://github.com/MentaNew/nvidia_dell_hackathon">View the code ↗</a>
+    </div>
+  </div>
+
+  <section id="demo-section">
+    <div class="wrap">
+      <h2>Try it</h2>
+      <p class="sub">A working recreation of the command-post app, running in your browser on recorded inputs. Start with the three-step tour, then drop any file yourself. The app logic is real; only the model outputs are pre-recorded.</p>
+      <div class="demo-grid">
+        <div id="demo" aria-label="RescueBase demo"></div>
+        <aside class="try">
+          <h3>Things to try</h3>
+          <ol>
+            <li>Drop an aerial photo: the vision model's draft events appear with the image as evidence.</li>
+            <li>Drop <code>report1.txt</code>, then its copy: the copy is recorded as a duplicate, not a second source.</li>
+            <li>Click <b>Cut the external internet</b>. The log keeps working.</li>
+            <li>Confirm or reject an event. Every event starts as an AI candidate.</li>
+            <li>Ask the log: “What has been reported in Sector 4?”</li>
+            <li>Open <b>SITREP</b> for a report short enough for a constrained radio link.</li>
+            <li>Drop <code>bad.png</code>: it retries, fails, and never blocks the queue.</li>
+          </ol>
+          <p class="note">The aerial photos are real public-domain FEMA photos (2007 and 2008), standing in for drone frames and labelled ARCHIVAL. The text inputs are the field reports from the project's test suite; the incident is simulated.</p>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap">
+      <h2>How it works</h2>
+      <p class="sub">Files dropped into a local inbox are analysed on the GB10. Each result becomes a draft event linked to its evidence, with capture time kept separate from ingestion time.</p>
+      <div class="flow">
+        <div><b>Inbox</b><br>Drone frames, clips and radio audio land in a watched folder.</div>
+        <div><b>Local analysis</b><br>Qwen3-VL reads images; Whisper transcribes radio, all served by vLLM.</div>
+        <div><b>Draft events</b><br>Typed, source-linked, with model-stated confidence.</div>
+        <div><b>Shared timeline</b><br>Ask the log questions; get a short SITREP.</div>
+        <div><b>Human review</b><br>A person confirms or rejects every event.</div>
+      </div>
+      <div class="rules">
+        <p>No victim or casualty claims, no dispatch orders, no “safe” or “passable” judgements.</p>
+        <p>Visual observations and spoken reports stay separate; their agreement is not confirmation.</p>
+        <p>Locations come from EXIF or a sidecar file only, never from a model's guess.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>What is real in this demo</h2>
+      <p class="sub">Being precise about this matters as much as the demo itself.</p>
+      <table class="real">
+        <thead><tr><th>Part</th><th>In this page</th></tr></thead>
+        <tbody>
+          <tr><td>Inbox worker: duplicates by content hash, retries, provenance labels, capture vs ingest time</td><td>Real logic, ported from the backend</td></tr>
+          <tr><td>Review states, keyword retrieval for “Ask the log”, SITREP structure</td><td>Real logic, ported from the backend</td></tr>
+          <tr><td>Text inputs</td><td>The project's own test fixtures</td></tr>
+          <tr><td>Aerial photos</td><td>Real public-domain FEMA photos (credited on each event), standing in for drone frames</td></tr>
+          <tr><td>Extracted events (what the model writes)</td><td>Recorded for this page, following the app's extraction rules; on the GB10, Qwen3-VL produces them</td></tr>
+          <tr><td>Memory shares in the GB10 tab</td><td>Configuration from the vLLM launch script, not measured usage</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>Built with</h2>
+      <div class="stack">
+        <span>Dell Pro Max with GB10 (128 GB unified memory)</span><span>vLLM</span><span>Qwen3-VL 30B-A3B</span><span>Whisper Large v3 Turbo</span><span>FastAPI</span><span>SQLite / MongoDB</span><span>OpenClaw</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="team">
+    <div class="wrap">
+      <h2>Team</h2>
+      <div class="team">
+        <div><b>Franco Plathottathil</b><span>Product and application</span></div>
+        <div><b>Yamin Mushtaq</b><span>Backend agent infrastructure (OpenClaw, OpenShell)</span></div>
+        <div><b>El Mehdi El Kasmi</b><span>Model selection and testing</span></div>
+        <div><b>Cezary</b><span>Demo assets</span></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">Built in about twelve hours at the Dell × NVIDIA BuilderBase hackathon, Cornell. Code and technical documentation on <a href="https://github.com/MentaNew/nvidia_dell_hackathon">GitHub</a>.</div>
+</footer>
+
+<script type="module" src="demo.js"></script>
+</body>
+</html>
